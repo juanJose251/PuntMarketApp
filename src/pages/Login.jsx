@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../store/useAuth'
 import { Store, User, ShieldCheck, ShoppingBag } from 'lucide-react'
@@ -10,9 +10,14 @@ function Login() {
   const [role, setRole] = useState('seller')
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    if (user) {
+      const redirect = user.role === 'admin' ? '/admin' : '/seller'
+      navigate(redirect, { replace: true })
+    }
+  }, [user, navigate])
+
   if (user) {
-    const redirect = user.role === 'admin' ? '/admin' : '/seller'
-    navigate(redirect, { replace: true })
     return null
   }
 
