@@ -1,0 +1,113 @@
+import { useMemo } from 'react'
+import { useProducts } from '../../store/useProducts'
+import { useSales } from '../../store/useSales'
+import { formatPrice } from '../../utils/format'
+import DataTable from '../../components/DataTable'
+import { DollarSign, Package, ShoppingCart, TrendingUp } from 'lucide-react'
+
+function Dashboard() {
+  const { products } = useProducts()
+  const { sales } = useSales()
+
+  const stats = useMemo(() => {
+    const totalProducts = products.length
+    const totalSales = sales.length
+    const totalRevenue = sales.reduce((sum, s) => sum + s.total, 0)
+
+    const today = new Date().toISOString().split('T')[0]
+    const todaySales = sales.filter((s) => s.date.startsWith(today))
+    const todayRevenue = todaySales.reduce((sum, s) => sum + s.total, 0)
+
+    return { totalProducts, totalSales, totalRevenue, todayRevenue, todaySales: todaySales.length }
+  }, [products, sales])
+
+  const recentSales = useMemo(() => {
+    return sales.slice(0, 10)
+  }, [sales])
+
+  const topProducts = useMemo(() => {
+    const count = {}
+    sales.forEach((sale) => {
+      sale.items.forEach((item) => {
+        count[item.name] = (count[item.name] || 0) + item.quantity
+      })
+    })
+    return Object.entries(count)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([name, quantity]) => ({ name, quantity }))
+  }, [sales])
+
+  const statCards = [
+    { label: 'Productos', value: stats.totalProducts, icon: Package, color: 'bg-blue-primary' },
+    { label: 'Ventas totales', value: stats.totalSales, icon: ShoppingCart, color: 'bg-emerald-primary' },
+    { label: 'Ingresos totales', value: formatPrice(stats.totalRevenue), icon: DollarSign, color: 'bg-violet-600' },
+    { label: 'Ventas hoy', value: `$${stats.todayRevenue.toFixed(2)} (${stats.todaySales})`, icon: TrendingUp, color: 'bg-amber-600' },
+  ]
+
+  return (
+    <div className="space-y-8">
+      <h1 className="text-3xl font-bold">Dashboard</h1>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {statCards.map((card) => {
+          const Icon = card.icon
+          return (
+            <div key={card.label} className="bg-dark-card rounded-xl p-6 shadow flex items-center gap-4">
+              <div className={`${card.color} p-3 rounded-lg`}>
+                <Icon size={24} className="text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-300">{card.label}</p>
+                <p className="text-xl font-bold">{card.value}</p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section className="bg-dark-card rounded-xl p-6 shadow space-y-4">
+          <h2 className="text-xl font-bold">Productos más vendidos</h2>
+          {topProducts.length === 0 ? (
+            <p className="text-gray-300">No hay ventas registradas.</p>
+          ) : (
+            <div className="space-y-3">
+              {topProducts.map((item, i) => (
+                <div key={item.name} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-400 w-6">#{i + 1}</span>
+                    <span className="font-medium">{item.name}</span>
+                  </div>
+                  <span className="text-sm text-gray-300">{item.quantity} vendidos</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="bg-dark-card rounded-xl p-6 shadow space-y-4">
+          <h2 className="text-xl font-bold">Ventas Recientes</h2>
+          {recentSales.length === 0 ? (
+            <p className="text-gray-300">No hay ventas registradas.</p>
+          ) : (
+            <DataTable
+              headers={['Productos', 'Total', 'Vendedor', 'Método']}
+              data={recentSales}
+              renderRow={(sale) => (
+                <tr key={sale.id} className="border-b border-white/10 last:border-0">
+                  <td className="py-2 px-3 text-sm">{sale.items.length} productos</td>
+                  <td className="py-2 px-3 text-sm font-medium">{formatPrice(sale.total)}</td>
+                  <td className="py-2 px-3 text-sm text-gray-300">{sale.sellerName}</td>
+                  <td className="py-2 px-3 text-sm capitalize">{sale.paymentMethod}</td>
+                </tr>
+              )}
+            />
+          )}
+        </section>
+      </div>
+    </div>
+  )
+}
+
+export default Dashboard
