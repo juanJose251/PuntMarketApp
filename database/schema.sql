@@ -83,8 +83,8 @@ RETURNS VOID
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  DELETE FROM sale_items;
-  DELETE FROM sales;
+  DELETE FROM sale_items WHERE id IS NOT NULL;
+  DELETE FROM sales WHERE id IS NOT NULL;
 END;
 $$;
 
