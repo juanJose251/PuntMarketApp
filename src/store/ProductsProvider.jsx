@@ -1,103 +1,143 @@
-import { useReducer, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { ProductsContext } from './ProductsContext'
-
-const STORAGE_KEY = 'pos_products'
-
-const DEFAULT_PRODUCTS = [
-  { id: 'p1', name: 'Camisa', price: 15.00, stock: 50, category: 'Ropa' },
-  { id: 'p2', name: 'Pantalón', price: 25.00, stock: 30, category: 'Ropa' },
-  { id: 'p3', name: 'Zapatos', price: 45.00, stock: 20, category: 'Calzado' },
-  { id: 'p4', name: 'Gorra', price: 10.00, stock: 40, category: 'Accesorios' },
-  { id: 'p5', name: 'Bolso', price: 20.00, stock: 15, category: 'Accesorios' },
-  { id: 'p6', name: 'Reloj', price: 35.00, stock: 10, category: 'Accesorios' },
-  { id: 'p7', name: 'Chaqueta', price: 55.00, stock: 12, category: 'Ropa' },
-  { id: 'p8', name: 'Jeans', price: 30.00, stock: 25, category: 'Ropa' },
-]
-
-function loadProducts() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_PRODUCTS))
-    return DEFAULT_PRODUCTS
-  } catch {
-    return DEFAULT_PRODUCTS
-  }
-}
-
-function saveProducts(products) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(products))
-}
-
-function productsReducer(state, action) {
-  switch (action.type) {
-    case 'ADD_PRODUCT':
-      return [...state, action.payload]
-    case 'UPDATE_PRODUCT':
-      return state.map((p) => (p.id === action.payload.id ? action.payload : p))
-    case 'DELETE_PRODUCT':
-      return state.filter((p) => p.id !== action.payload)
-    case 'DECREMENT_STOCK':
-      return state.map((p) => {
-        const item = action.payload.find((i) => i.id === p.id)
-        return item ? { ...p, stock: p.stock - item.quantity } : p
-      })
-    case 'RESET':
-      return action.payload
-    default:
-      return state
-  }
-}
+import { supabase } from '../lib/supabase'
+import { toast } from 'sonner'
 
 export function ProductsProvider({ children }) {
-  const [products, dispatch] = useReducer(productsReducer, null, loadProducts)
+  const [products, setProducts] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  const addProduct = useCallback((product) => {
-    dispatch({ type: 'ADD_PRODUCT', payload: product })
-    const updated = [...JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'), product]
-    saveProducts(updated)
+  const fetchProducts = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const { data, error: supaError } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (supaError) throw supaError
+      setProducts(data || [])
+    } catch (err) {
+      setError(err.message)
+      toast.error('Error cargando productos')
+    } finally {
+      setIsLoading(false)
+    }
   }, [])
 
-  const updateProduct = useCallback((product) => {
-    dispatch({ type: 'UPDATE_PRODUCT', payload: product })
-    const updated = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]').map((p) =>
-      p.id === product.id ? product : p,
-    )
-    saveProducts(updated)
+  useEffect(() => {
+    fetchProducts()
+  }, [fetchProducts])
+
+  const addProduct = useCallback(async (product) => {
+    try {
+      const { data, error: supaError } = await supabase
+        .from('products')
+        .insert([product])
+        .select()
+
+      if (supaError) throw supaError
+      const newProduct = data[0]
+      setProducts((prev) => [newProduct, ...prev])
+      toast.success('Producto agregado')
+      return newProduct
+    } catch (err) {
+      toast.error('Error agregando producto')
+      throw err
+    }
   }, [])
 
-  const deleteProduct = useCallback((id) => {
-    dispatch({ type: 'DELETE_PRODUCT', payload: id })
-    const updated = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]').filter((p) => p.id !== id)
-    saveProducts(updated)
+  const updateProduct = useCallback(async (product) => {
+    try {
+      const { data, error: supaError } = await supabase
+        .from('products')
+        .update({
+          name: product.name,
+          price: product.price,
+          stock: product.stock,
+          category: product.category,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', product.id)
+        .select()
+
+      if (supaError) throw supaError
+      const updated = data[0]
+      setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+      toast.success('Producto actualizado')
+      return updated
+    } catch (err) {
+      toast.error('Error actualizando producto')
+      throw err
+    }
   }, [])
 
-  const decrementStock = useCallback((items) => {
-    dispatch({ type: 'DECREMENT_STOCK', payload: items })
-    const current = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
-    const updated = current.map((p) => {
-      const item = items.find((i) => i.id === p.id)
-      return item ? { ...p, stock: p.stock - item.quantity } : p
-    })
-    saveProducts(updated)
+  const deleteProduct = useCallback(async (id) => {
+    try {
+      const { error: supaError } = await supabase.from('products').delete().eq('id', id)
+
+      if (supaError) throw supaError
+      setProducts((prev) => prev.filter((p) => p.id !== id))
+      toast.success('Producto eliminado')
+    } catch (err) {
+      toast.error('Error eliminando producto')
+      throw err
+    }
   }, [])
 
-  const getProduct = useCallback((id) => {
-    return products.find((p) => p.id === id)
-  }, [products])
+  const decrementStock = useCallback(async (items) => {
+    try {
+      const updates = items.map((item) =>
+        supabase
+          .from('products')
+          .update({
+            stock: products.find((p) => p.id === item.id).stock - item.quantity,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', item.id)
+      )
 
-  const value = useMemo(() => ({
-    products,
-    addProduct,
-    updateProduct,
-    deleteProduct,
-    decrementStock,
-    getProduct,
-  }), [products, addProduct, updateProduct, deleteProduct, decrementStock, getProduct])
+      await Promise.all(updates)
+      await fetchProducts()
+    } catch (err) {
+      toast.error('Error actualizando stock')
+      throw err
+    }
+  }, [products, fetchProducts])
 
-  return (
-    <ProductsContext.Provider value={value}>
-      {children}
-    </ProductsContext.Provider>
+  const getProduct = useCallback(
+    (id) => {
+      return products.find((p) => p.id === id)
+    },
+    [products]
   )
+
+  const value = useMemo(
+    () => ({
+      products,
+      isLoading,
+      error,
+      addProduct,
+      updateProduct,
+      deleteProduct,
+      decrementStock,
+      getProduct,
+      refreshProducts: fetchProducts,
+    }),
+    [
+      products,
+      isLoading,
+      error,
+      addProduct,
+      updateProduct,
+      deleteProduct,
+      decrementStock,
+      getProduct,
+      fetchProducts,
+    ]
+  )
+
+  return <ProductsContext.Provider value={value}>{children}</ProductsContext.Provider>
 }

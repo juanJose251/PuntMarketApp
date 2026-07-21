@@ -1,16 +1,28 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useSales } from '../../store/useSales'
 import DataTable from '../../components/DataTable'
 import { formatPrice, formatDate } from '../../utils/format'
-import { Trash2 } from 'lucide-react'
+import { Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 function AdminSales() {
-  const { sales, clearSales } = useSales()
+  const { sales, isLoading, clearSales } = useSales()
+  const [clearing, setClearing] = useState(false)
 
   const totalRevenue = useMemo(() => {
     return sales.reduce((sum, s) => sum + s.total, 0)
   }, [sales])
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Historial de Ventas</h1>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="animate-spin text-blue-primary" size={32} />
+        </div>
+      </div>
+    )
+  }
 
   if (sales.length === 0) {
     return (
@@ -21,10 +33,13 @@ function AdminSales() {
     )
   }
 
-  const handleClear = () => {
-    if (window.confirm('¿Limpiar todo el historial de ventas?')) {
-      clearSales()
-      toast.success('Historial limpiado')
+  const handleClear = async () => {
+    if (!window.confirm('¿Limpiar todo el historial de ventas?')) return
+    setClearing(true)
+    try {
+      await clearSales()
+    } finally {
+      setClearing(false)
     }
   }
 
@@ -35,11 +50,12 @@ function AdminSales() {
           <h1 className="text-3xl font-bold">Historial de Ventas</h1>
           <p className="text-gray-300 mt-1">{sales.length} ventas · {formatPrice(totalRevenue)} en total</p>
         </div>
-        <button
+          <button
           onClick={handleClear}
-          className="flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg transition"
+          disabled={clearing}
+          className="flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg transition disabled:opacity-50"
         >
-          <Trash2 size={16} />
+          {clearing ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
           Limpiar historial
         </button>
       </div>
@@ -64,7 +80,7 @@ function AdminSales() {
 
             <DataTable
               headers={['Producto', 'Precio', 'Cantidad', 'Subtotal']}
-              data={sale.items}
+              data={sale.sale_items}
               renderRow={(item) => (
                 <tr key={item.productId} className="border-b border-white/10 last:border-0">
                   <td className="py-2 px-3">{item.name}</td>

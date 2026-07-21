@@ -3,15 +3,17 @@ import { useProducts } from '../../store/useProducts'
 import DataTable from '../../components/DataTable'
 import { formatPrice } from '../../utils/format'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, X } from 'lucide-react'
+import { Loader2, Plus, Pencil, Trash2, X } from 'lucide-react'
 
 const emptyProduct = { name: '', price: '', stock: '', category: '' }
 
 function AdminProducts() {
-  const { products, addProduct, updateProduct, deleteProduct } = useProducts()
+  const { products, isLoading, addProduct, updateProduct, deleteProduct } = useProducts()
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyProduct)
+  const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState(null)
 
   const openAdd = () => {
     setEditing(null)
@@ -34,7 +36,7 @@ function AdminProducts() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.name.trim() || !form.price || !form.stock || !form.category.trim()) {
       toast.error('Todos los campos son obligatorios')
@@ -51,23 +53,27 @@ function AdminProducts() {
       return
     }
 
-    if (editing) {
-      updateProduct({ ...editing, name: form.name.trim(), price, stock, category: form.category.trim() })
-      toast.success('Producto actualizado')
-    } else {
-      const id = `p${Date.now()}`
-      addProduct({ id, name: form.name.trim(), price, stock, category: form.category.trim() })
-      toast.success('Producto agregado')
+    setSaving(true)
+    try {
+      if (editing) {
+        await updateProduct({ ...editing, name: form.name.trim(), price, stock, category: form.category.trim() })
+      } else {
+        await addProduct({ name: form.name.trim(), price, stock, category: form.category.trim() })
+      }
+      setShowModal(false)
+      setForm(emptyProduct)
+    } finally {
+      setSaving(false)
     }
-
-    setShowModal(false)
-    setForm(emptyProduct)
   }
 
-  const handleDelete = (product) => {
-    if (window.confirm(`¿Eliminar "${product.name}"?`)) {
-      deleteProduct(product.id)
-      toast.success('Producto eliminado')
+  const handleDelete = async (product) => {
+    if (!window.confirm(`¿Eliminar "${product.name}"?`)) return
+    setDeletingId(product.id)
+    try {
+      await deleteProduct(product.id)
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -84,37 +90,44 @@ function AdminProducts() {
         </button>
       </div>
 
-      <DataTable
-        headers={['Nombre', 'Categoría', 'Precio', 'Stock', 'Acciones']}
-        data={products}
-        emptyMessage="No hay productos registrados."
-        renderRow={(product) => (
-          <tr key={product.id} className="border-b border-white/10 last:border-0 hover:bg-dark-row-hover transition-colors">
-            <td className="py-3 px-4 font-medium">{product.name}</td>
-            <td className="py-3 px-4 text-gray-300">{product.category}</td>
-            <td className="py-3 px-4">{formatPrice(product.price)}</td>
-            <td className="py-3 px-4">{product.stock}</td>
-            <td className="py-3 px-4">
-              <div className="flex items-center justify-center gap-2">
-                <button
-                  onClick={() => openEdit(product)}
-                  className="p-2 text-blue-primary hover:bg-blue-primary/10 rounded-lg transition"
-                  title="Editar"
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  onClick={() => handleDelete(product)}
-                  className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition"
-                  title="Eliminar"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </td>
-          </tr>
-        )}
-      />
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="animate-spin text-blue-primary" size={32} />
+        </div>
+      ) : (
+        <DataTable
+          headers={['Nombre', 'Categoría', 'Precio', 'Stock', 'Acciones']}
+          data={products}
+          emptyMessage="No hay productos registrados."
+          renderRow={(product) => (
+            <tr key={product.id} className="border-b border-white/10 last:border-0 hover:bg-dark-row-hover transition-colors">
+              <td className="py-3 px-4 font-medium">{product.name}</td>
+              <td className="py-3 px-4 text-gray-300">{product.category}</td>
+              <td className="py-3 px-4">{formatPrice(product.price)}</td>
+              <td className="py-3 px-4">{product.stock}</td>
+              <td className="py-3 px-4">
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    onClick={() => openEdit(product)}
+                    className="p-2 text-blue-primary hover:bg-blue-primary/10 rounded-lg transition"
+                    title="Editar"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(product)}
+                    disabled={deletingId === product.id}
+                    className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition disabled:opacity-50"
+                    title="Eliminar"
+                  >
+                    {deletingId === product.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          )}
+        />
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
@@ -189,8 +202,10 @@ function AdminProducts() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-primary hover:bg-blue-hover text-white rounded-lg font-medium transition"
+                  disabled={saving}
+                  className="flex-1 px-4 py-2 bg-blue-primary hover:bg-blue-hover text-white rounded-lg font-medium transition disabled:opacity-60 flex items-center justify-center gap-2"
                 >
+                  {saving && <Loader2 size={16} className="animate-spin" />}
                   {editing ? 'Guardar Cambios' : 'Agregar'}
                 </button>
               </div>

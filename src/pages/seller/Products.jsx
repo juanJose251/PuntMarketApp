@@ -2,10 +2,10 @@ import { useState, useMemo } from 'react'
 import { useProducts } from '../../store/useProducts'
 import DataTable from '../../components/DataTable'
 import { formatPrice } from '../../utils/format'
-import { Search, Package } from 'lucide-react'
+import { Search, Package, Loader2 } from 'lucide-react'
 
 function SellerProducts() {
-  const { products } = useProducts()
+  const { products, isLoading } = useProducts()
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
 
@@ -85,6 +85,11 @@ function SellerProducts() {
         </div>
       </div>
 
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="animate-spin text-blue-primary" size={32} />
+        </div>
+      ) : (
       <DataTable
         headers={['Nombre', 'Categoría', 'Precio', 'Stock', 'Estado']}
         data={filteredProducts}
@@ -111,6 +116,7 @@ function SellerProducts() {
           )
         }}
       />
+      )}
     </div>
   )
 }

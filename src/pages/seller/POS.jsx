@@ -4,7 +4,7 @@ import { useSales } from '../../store/useSales'
 import { useAuth } from '../../store/useAuth'
 import { formatPrice } from '../../utils/format'
 import { toast } from 'sonner'
-import { Search, Plus, Minus, Trash2, ShoppingCart, X, CreditCard, Banknote, Wallet } from 'lucide-react'
+import { Search, Plus, Minus, Trash2, ShoppingCart, X, CreditCard, Banknote, Wallet, Loader2 } from 'lucide-react'
 
 const paymentMethods = [
   { value: 'cash', label: 'Efectivo', icon: Banknote },
@@ -13,12 +13,13 @@ const paymentMethods = [
 ]
 
 function POS() {
-  const { products } = useProducts()
+  const { products, isLoading, refreshProducts } = useProducts()
   const { addSale } = useSales()
   const { user } = useAuth()
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState([])
   const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [processing, setProcessing] = useState(false)
 
   const filteredProducts = useMemo(() => {
     if (!search.trim()) return products
@@ -80,23 +81,28 @@ function POS() {
     setCart((prev) => prev.filter((item) => item.productId !== productId))
   }
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) {
       toast.error('Agrega productos al carrito')
       return
     }
 
-    addSale({
-      items: cart,
-      total: cartTotal,
-      paymentMethod,
-      sellerName: user?.name || 'Vendedor',
-    })
-
-    toast.success('Venta registrada exitosamente', {
-      description: `Total: ${formatPrice(cartTotal)} - ${paymentMethods.find((p) => p.value === paymentMethod)?.label}`,
-    })
-    setCart([])
+    setProcessing(true)
+    try {
+      await addSale({
+        items: cart,
+        total: cartTotal,
+        paymentMethod,
+        sellerName: user?.name || 'Vendedor',
+      })
+      await refreshProducts()
+      toast.success('Venta registrada exitosamente', {
+        description: `Total: ${formatPrice(cartTotal)} - ${paymentMethods.find((p) => p.value === paymentMethod)?.label}`,
+      })
+      setCart([])
+    } finally {
+      setProcessing(false)
+    }
   }
 
   const clearCart = () => {
@@ -120,7 +126,11 @@ function POS() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {inStockProducts.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center h-full text-gray-300">
+              <Loader2 className="animate-spin text-blue-primary" size={32} />
+            </div>
+          ) : inStockProducts.length === 0 ? (
             <div className="flex items-center justify-center h-full text-gray-300">
               {search ? 'No se encontraron productos.' : 'No hay productos disponibles.'}
             </div>
@@ -228,11 +238,11 @@ function POS() {
 
           <button
             onClick={handleCheckout}
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || processing}
             className="w-full py-3 bg-emerald-primary hover:bg-emerald-hover disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg font-medium transition flex items-center justify-center gap-2"
           >
-            <CreditCard size={18} />
-            Cobrar
+            {processing ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
+            {processing ? 'Procesando...' : 'Cobrar'}
           </button>
         </div>
       </div>

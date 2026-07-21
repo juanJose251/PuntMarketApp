@@ -3,11 +3,13 @@ import { useProducts } from '../../store/useProducts'
 import { useSales } from '../../store/useSales'
 import { formatPrice } from '../../utils/format'
 import DataTable from '../../components/DataTable'
-import { DollarSign, Package, ShoppingCart, TrendingUp } from 'lucide-react'
+import { DollarSign, Loader2, Package, ShoppingCart, TrendingUp } from 'lucide-react'
 
 function Dashboard() {
-  const { products } = useProducts()
-  const { sales } = useSales()
+  const { products, isLoading: productsLoading } = useProducts()
+  const { sales, isLoading: salesLoading } = useSales()
+
+  const isLoading = productsLoading || salesLoading
 
   const stats = useMemo(() => {
     const totalProducts = products.length
@@ -15,7 +17,7 @@ function Dashboard() {
     const totalRevenue = sales.reduce((sum, s) => sum + s.total, 0)
 
     const today = new Date().toISOString().split('T')[0]
-    const todaySales = sales.filter((s) => s.date.startsWith(today))
+    const todaySales = sales.filter((s) => s.created_at.startsWith(today))
     const todayRevenue = todaySales.reduce((sum, s) => sum + s.total, 0)
 
     return { totalProducts, totalSales, totalRevenue, todayRevenue, todaySales: todaySales.length }
@@ -28,7 +30,7 @@ function Dashboard() {
   const topProducts = useMemo(() => {
     const count = {}
     sales.forEach((sale) => {
-      sale.items.forEach((item) => {
+      sale.sale_items.forEach((item) => {
         count[item.name] = (count[item.name] || 0) + item.quantity
       })
     })
@@ -44,6 +46,14 @@ function Dashboard() {
     { label: 'Ingresos totales', value: formatPrice(stats.totalRevenue), icon: DollarSign, color: 'bg-violet-600' },
     { label: 'Ventas hoy', value: `$${stats.todayRevenue.toFixed(2)} (${stats.todaySales})`, icon: TrendingUp, color: 'bg-amber-600' },
   ]
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="animate-spin text-blue-primary" size={40} />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8">
@@ -96,10 +106,10 @@ function Dashboard() {
               data={recentSales}
               renderRow={(sale) => (
                 <tr key={sale.id} className="border-b border-white/10 last:border-0">
-                  <td className="py-2 px-3 text-sm">{sale.items.length} productos</td>
+                  <td className="py-2 px-3 text-sm">{sale.sale_items.length} productos</td>
                   <td className="py-2 px-3 text-sm font-medium">{formatPrice(sale.total)}</td>
-                  <td className="py-2 px-3 text-sm text-gray-300">{sale.sellerName}</td>
-                  <td className="py-2 px-3 text-sm capitalize">{sale.paymentMethod}</td>
+                  <td className="py-2 px-3 text-sm text-gray-300">{sale.seller_name}</td>
+                  <td className="py-2 px-3 text-sm capitalize">{sale.payment_method}</td>
                 </tr>
               )}
             />
