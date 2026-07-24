@@ -1,15 +1,28 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useProducts } from '../../store/useProducts'
 import { useSales } from '../../store/useSales'
 import { formatPrice } from '../../utils/format'
+import { exportSalesToExcel } from '../../utils/exportToExcel'
 import DataTable from '../../components/DataTable'
-import { DollarSign, Loader2, Package, ShoppingCart, TrendingUp } from 'lucide-react'
+import { Calendar, DollarSign, Download, Loader2, Package, ShoppingCart, TrendingUp } from 'lucide-react'
+import { toast } from 'sonner'
 
 function Dashboard() {
   const { products, isLoading: productsLoading } = useProducts()
   const { sales, isLoading: salesLoading } = useSales()
 
   const isLoading = productsLoading || salesLoading
+
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
+
+  const handleExport = () => {
+    const success = exportSalesToExcel(sales, selectedDate)
+    if (!success) {
+      toast.error(`No hay ventas registradas para el ${selectedDate}`)
+    } else {
+      toast.success(`Exportación completada: ventas-${selectedDate}.xlsx`)
+    }
+  }
 
   const stats = useMemo(() => {
     const totalProducts = products.length
@@ -75,6 +88,36 @@ function Dashboard() {
           )
         })}
       </div>
+
+      <section className="bg-dark-card rounded-xl p-6 shadow space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Calendar size={20} className="text-blue-primary" />
+              Exportar ventas
+            </h2>
+            <p className="text-sm text-gray-300 mt-1">
+              Descarga un archivo Excel con el detalle de las ventas del día seleccionado.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-dark-bg border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-primary"
+            />
+            <button
+              onClick={handleExport}
+              disabled={sales.length === 0}
+              className="bg-blue-primary hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition"
+            >
+              <Download size={18} />
+              Exportar
+            </button>
+          </div>
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <section className="bg-dark-card rounded-xl p-6 shadow space-y-4">
