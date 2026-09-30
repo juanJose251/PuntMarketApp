@@ -1,7 +1,8 @@
 import * as XLSX from 'xlsx'
+import { toDateKey } from './date'
 
 export function exportSalesToExcel(sales, dateStr) {
-  const filteredSales = sales.filter((sale) => sale.created_at.startsWith(dateStr))
+  const filteredSales = sales.filter((sale) => toDateKey(sale.created_at) === dateStr)
 
   if (filteredSales.length === 0) {
     return false

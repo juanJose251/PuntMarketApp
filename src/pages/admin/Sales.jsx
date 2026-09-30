@@ -68,12 +68,12 @@ function AdminSales() {
                 <p className="text-sm text-gray-400">
                   Venta #{sale.id.slice(-6).toUpperCase()}
                 </p>
-                <p className="text-sm text-gray-400">{formatDate(sale.date)}</p>
+                <p className="text-sm text-gray-400">{formatDate(sale.created_at)}</p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-300">por {sale.sellerName}</span>
+                <span className="text-sm text-gray-300">por {sale.seller_name}</span>
                 <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-blue-primary/20 text-blue-300 capitalize">
-                  {sale.paymentMethod}
+                  {sale.payment_method}
                 </span>
               </div>
             </div>
@@ -82,7 +82,7 @@ function AdminSales() {
               headers={['Producto', 'Precio', 'Cantidad', 'Subtotal']}
               data={sale.sale_items}
               renderRow={(item) => (
-                <tr key={item.productId} className="border-b border-white/10 last:border-0">
+                <tr key={item.id} className="border-b border-white/10 last:border-0">
                   <td className="py-2 px-3">{item.name}</td>
                   <td className="py-2 px-3">{formatPrice(item.price)}</td>
                   <td className="py-2 px-3">{item.quantity}</td>

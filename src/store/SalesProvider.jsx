@@ -66,18 +66,6 @@ export function SalesProvider({ children }) {
     }
   }, [])
 
-  const getSalesByDate = useCallback(
-    (date) => {
-      const dateStr = date.toISOString().split('T')[0]
-      return sales.filter((s) => s.created_at.startsWith(dateStr))
-    },
-    [sales]
-  )
-
-  const getSalesToday = useCallback(() => {
-    return getSalesByDate(new Date())
-  }, [getSalesByDate])
-
   const value = useMemo(
     () => ({
       sales,
@@ -85,11 +73,9 @@ export function SalesProvider({ children }) {
       error,
       addSale,
       clearSales,
-      getSalesByDate,
-      getSalesToday,
       refreshSales: fetchSales,
     }),
-    [sales, isLoading, error, addSale, clearSales, getSalesByDate, getSalesToday, fetchSales]
+    [sales, isLoading, error, addSale, clearSales, fetchSales]
   )
 
   return <SalesContext.Provider value={value}>{children}</SalesContext.Provider>

@@ -3,6 +3,7 @@ import { useProducts } from '../../store/useProducts'
 import { useSales } from '../../store/useSales'
 import { formatPrice } from '../../utils/format'
 import { exportSalesToExcel } from '../../utils/exportToExcel'
+import { toDateKey } from '../../utils/date'
 import DataTable from '../../components/DataTable'
 import { Calendar, DollarSign, Download, Loader2, Package, ShoppingCart, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
@@ -13,7 +14,7 @@ function Dashboard() {
 
   const isLoading = productsLoading || salesLoading
 
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [selectedDate, setSelectedDate] = useState(() => toDateKey(new Date()))
 
   const handleExport = () => {
     const success = exportSalesToExcel(sales, selectedDate)
@@ -29,8 +30,8 @@ function Dashboard() {
     const totalSales = sales.length
     const totalRevenue = sales.reduce((sum, s) => sum + s.total, 0)
 
-    const today = new Date().toISOString().split('T')[0]
-    const todaySales = sales.filter((s) => s.created_at.startsWith(today))
+    const today = toDateKey(new Date())
+    const todaySales = sales.filter((s) => toDateKey(s.created_at) === today)
     const todayRevenue = todaySales.reduce((sum, s) => sum + s.total, 0)
 
     return { totalProducts, totalSales, totalRevenue, todayRevenue, todaySales: todaySales.length }

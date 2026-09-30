@@ -87,26 +87,6 @@ export function ProductsProvider({ children }) {
     }
   }, [])
 
-  const decrementStock = useCallback(async (items) => {
-    try {
-      const updates = items.map((item) =>
-        supabase
-          .from('products')
-          .update({
-            stock: products.find((p) => p.id === item.id).stock - item.quantity,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', item.id)
-      )
-
-      await Promise.all(updates)
-      await fetchProducts()
-    } catch (err) {
-      toast.error('Error actualizando stock')
-      throw err
-    }
-  }, [products, fetchProducts])
-
   const getProduct = useCallback(
     (id) => {
       return products.find((p) => p.id === id)
@@ -122,7 +102,6 @@ export function ProductsProvider({ children }) {
       addProduct,
       updateProduct,
       deleteProduct,
-      decrementStock,
       getProduct,
       refreshProducts: fetchProducts,
     }),
@@ -133,7 +112,6 @@ export function ProductsProvider({ children }) {
       addProduct,
       updateProduct,
       deleteProduct,
-      decrementStock,
       getProduct,
       fetchProducts,
     ]
