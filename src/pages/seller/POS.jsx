@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useProducts } from '../../store/useProducts'
 import { useSales } from '../../store/useSales'
 import { useAuth } from '../../store/useAuth'
+import { useCart } from '../../store/useCart'
 import { formatPrice } from '../../utils/format'
 import { toast } from 'sonner'
 import { Search, Plus, Minus, Trash2, ShoppingCart, X, CreditCard, Banknote, Wallet, Loader2 } from 'lucide-react'
@@ -17,7 +18,7 @@ function POS() {
   const { addSale } = useSales()
   const { user } = useAuth()
   const [search, setSearch] = useState('')
-  const [cart, setCart] = useState([])
+  const { items: cart, error: cartError, total: cartTotal, addItem, changeQuantity, removeItem, clear } = useCart()
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [processing, setProcessing] = useState(false)
 
@@ -33,53 +34,12 @@ function POS() {
     return filteredProducts.filter((p) => p.stock > 0)
   }, [filteredProducts])
 
-  const cartTotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  }, [cart])
+  useEffect(() => {
+    if (cartError) toast.error(cartError.message)
+  }, [cartError])
 
-  const addToCart = (product) => {
-    setCart((prev) => {
-      const existing = prev.find((item) => item.productId === product.id)
-      if (existing) {
-        if (existing.quantity >= product.stock) {
-          toast.error(`Stock insuficiente de "${product.name}"`)
-          return prev
-        }
-        return prev.map((item) =>
-          item.productId === product.id
-            ? { ...item, quantity: item.quantity + 1, subtotal: (item.quantity + 1) * item.price }
-            : item,
-        )
-      }
-      return [...prev, {
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        quantity: 1,
-        subtotal: product.price,
-      }]
-    })
-  }
-
-  const updateQuantity = (productId, delta) => {
-    setCart((prev) => {
-      const product = products.find((p) => p.id === productId)
-      return prev.map((item) => {
-        if (item.productId !== productId) return item
-        const newQty = item.quantity + delta
-        if (newQty <= 0) return null
-        if (product && newQty > product.stock) {
-          toast.error(`Stock insuficiente de "${item.name}"`)
-          return item
-        }
-        return { ...item, quantity: newQty, subtotal: newQty * item.price }
-      }).filter(Boolean)
-    })
-  }
-
-  const removeFromCart = (productId) => {
-    setCart((prev) => prev.filter((item) => item.productId !== productId))
-  }
+  const updateQuantity = (productId, delta) =>
+    changeQuantity(productId, delta, products.find((p) => p.id === productId)?.stock)
 
   const handleCheckout = async () => {
     if (cart.length === 0) {
@@ -99,7 +59,7 @@ function POS() {
       toast.success('Venta registrada exitosamente', {
         description: `Total: ${formatPrice(cartTotal)} - ${paymentMethods.find((p) => p.value === paymentMethod)?.label}`,
       })
-      setCart([])
+      clear()
     } finally {
       setProcessing(false)
     }
@@ -107,7 +67,7 @@ function POS() {
 
   const clearCart = () => {
     if (cart.length > 0 && window.confirm('¿Vaciar el carrito?')) {
-      setCart([])
+      clear()
     }
   }
 
@@ -139,7 +99,7 @@ function POS() {
               {inStockProducts.map((product) => (
                 <button
                   key={product.id}
-                  onClick={() => addToCart(product)}
+                  onClick={() => addItem(product)}
                   className="bg-dark-card rounded-xl p-4 text-left hover:bg-dark-row-hover transition border border-white/10 hover:border-blue-primary/50 space-y-1"
                 >
                   <p className="font-medium truncate">{product.name}</p>
@@ -178,7 +138,7 @@ function POS() {
                 <div className="flex items-center justify-between">
                   <p className="font-medium text-sm truncate">{item.name}</p>
                   <button
-                    onClick={() => removeFromCart(item.productId)}
+                    onClick={() => removeItem(item.productId)}
                     className="p-1 text-red-400 hover:bg-red-400/10 rounded transition"
                   >
                     <X size={14} />
