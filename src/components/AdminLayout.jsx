@@ -1,5 +1,6 @@
 import { NavLink, Link, Outlet, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, Package, Receipt, LogOut, Store } from 'lucide-react'
+import DemoBanner from './DemoBanner'
 import { useAuth } from '../store/useAuth'
 
 const navItems = [
@@ -19,6 +20,7 @@ function AdminLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-dark-navy text-white font-sans">
+      <DemoBanner />
       <header className="bg-dark-card shadow-md sticky top-0 z-50">
         <nav className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <Link to="/admin" className="flex items-center gap-2 text-xl font-bold text-white hover:text-blue-primary transition">

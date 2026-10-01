@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../store/useAuth'
+import { isDemo } from '../data'
+import DemoBanner from '../components/DemoBanner'
 import { Store, User, ShieldCheck, ShoppingBag } from 'lucide-react'
 
 function Login() {
@@ -21,6 +23,11 @@ function Login() {
     return null
   }
 
+  const enterAs = (demoName, demoRole) => {
+    login(demoName, demoRole)
+    navigate(demoRole === 'admin' ? '/admin' : '/seller', { replace: true })
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!name.trim()) {
@@ -32,13 +39,36 @@ function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-dark-navy px-4">
+    <div className="min-h-screen flex flex-col bg-dark-navy">
+      <DemoBanner />
+      <div className="flex-1 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Store size={48} className="mx-auto text-blue-primary mb-4" />
           <h1 className="text-3xl font-bold text-white">POS App</h1>
           <p className="text-gray-300 mt-2">Inicia sesión para continuar</p>
         </div>
+
+        {isDemo && (
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <button
+              type="button"
+              onClick={() => enterAs('Admin Demo', 'admin')}
+              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-primary hover:bg-blue-hover text-white font-medium transition"
+            >
+              <ShieldCheck size={18} />
+              Entrar como Admin
+            </button>
+            <button
+              type="button"
+              onClick={() => enterAs('Vendedor Demo', 'seller')}
+              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-primary hover:bg-emerald-hover text-white font-medium transition"
+            >
+              <ShoppingBag size={18} />
+              Entrar como Vendedor
+            </button>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="bg-dark-card rounded-2xl p-8 shadow-lg space-y-6">
           <div className="space-y-2">
@@ -100,9 +130,10 @@ function Login() {
           </button>
 
           <p className="text-xs text-gray-500 text-center">
-            Demo: selecciona un rol y tu nombre para comenzar
+            {isDemo ? 'Demo pública: sin contraseñas, datos de ejemplo' : 'Selecciona un rol y tu nombre para comenzar'}
           </p>
         </form>
+      </div>
       </div>
     </div>
   )
