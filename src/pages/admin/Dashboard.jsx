@@ -16,8 +16,8 @@ function Dashboard() {
 
   const [selectedDate, setSelectedDate] = useState(() => toDateKey(new Date()))
 
-  const handleExport = () => {
-    const success = exportSalesToExcel(sales, selectedDate)
+  const handleExport = async () => {
+    const success = await exportSalesToExcel(sales, selectedDate)
     if (!success) {
       toast.error(`No hay ventas registradas para el ${selectedDate}`)
     } else {
