@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { ProductsContext } from './ProductsContext'
-import { supabase } from '../lib/supabase'
+import { db } from '../data'
 import { toast } from 'sonner'
 
 export function ProductsProvider({ children }) {
@@ -12,13 +12,7 @@ export function ProductsProvider({ children }) {
     setIsLoading(true)
     setError(null)
     try {
-      const { data, error: supaError } = await supabase
-        .from('products')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (supaError) throw supaError
-      setProducts(data || [])
+      setProducts(await db.products.list())
     } catch (err) {
       setError(err.message)
       toast.error('Error cargando productos')
@@ -33,13 +27,7 @@ export function ProductsProvider({ children }) {
 
   const addProduct = useCallback(async (product) => {
     try {
-      const { data, error: supaError } = await supabase
-        .from('products')
-        .insert([product])
-        .select()
-
-      if (supaError) throw supaError
-      const newProduct = data[0]
+      const newProduct = await db.products.create(product)
       setProducts((prev) => [newProduct, ...prev])
       toast.success('Producto agregado')
       return newProduct
@@ -51,20 +39,7 @@ export function ProductsProvider({ children }) {
 
   const updateProduct = useCallback(async (product) => {
     try {
-      const { data, error: supaError } = await supabase
-        .from('products')
-        .update({
-          name: product.name,
-          price: product.price,
-          stock: product.stock,
-          category: product.category,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', product.id)
-        .select()
-
-      if (supaError) throw supaError
-      const updated = data[0]
+      const updated = await db.products.update(product)
       setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
       toast.success('Producto actualizado')
       return updated
@@ -76,9 +51,7 @@ export function ProductsProvider({ children }) {
 
   const deleteProduct = useCallback(async (id) => {
     try {
-      const { error: supaError } = await supabase.from('products').delete().eq('id', id)
-
-      if (supaError) throw supaError
+      await db.products.remove(id)
       setProducts((prev) => prev.filter((p) => p.id !== id))
       toast.success('Producto eliminado')
     } catch (err) {

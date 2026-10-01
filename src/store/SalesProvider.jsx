@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { SalesContext } from './SalesContext'
-import { supabase } from '../lib/supabase'
+import { db } from '../data'
 import { toast } from 'sonner'
 
 export function SalesProvider({ children }) {
@@ -12,13 +12,7 @@ export function SalesProvider({ children }) {
     setIsLoading(true)
     setError(null)
     try {
-      const { data, error: supaError } = await supabase
-        .from('sales')
-        .select('*, sale_items(*)')
-        .order('created_at', { ascending: false })
-
-      if (supaError) throw supaError
-      setSales(data || [])
+      setSales(await db.sales.list())
     } catch (err) {
       setError(err.message)
       toast.error('Error cargando ventas')
@@ -34,15 +28,7 @@ export function SalesProvider({ children }) {
   const addSale = useCallback(
     async (sale) => {
       try {
-        const { data: saleId, error: supaError } = await supabase.rpc('create_sale', {
-          p_total: sale.total,
-          p_payment_method: sale.paymentMethod,
-          p_seller_name: sale.sellerName,
-          p_items: sale.items,
-        })
-
-        if (supaError) throw supaError
-
+        const saleId = await db.sales.create(sale)
         await fetchSales()
         toast.success('Venta registrada exitosamente')
         return saleId
@@ -56,8 +42,7 @@ export function SalesProvider({ children }) {
 
   const clearSales = useCallback(async () => {
     try {
-      const { error: supaError } = await supabase.rpc('clear_sales')
-      if (supaError) throw supaError
+      await db.sales.clear()
       setSales([])
       toast.success('Historial limpiado')
     } catch (err) {
